@@ -1,7 +1,6 @@
 # 📧 Multi-File Mailer API
 
-Multi-File Mailer API is a powerful tool designed to send files
-to multiple email addresses, as well as for combining files into ZIP archives.
+Multi-File Mailer API, a powerful tool designed to send files to multiple email addresses and to combine files into ZIP archives, was developed for [Doodocs-Days-2.0](https://github.com/doodocs/doodocs-days/tree/main/backend).
 The project allows you to easily work with multipart/form-data files, simplifying
 the task of bulk mailing and file management.
 
