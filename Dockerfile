@@ -15,9 +15,8 @@ WORKDIR /root/
 
 COPY --from=builder /app/app .
 
-COPY .env .env
-
 ENV PORT 8080
+
 EXPOSE $PORT
 
 CMD ["./app"]
