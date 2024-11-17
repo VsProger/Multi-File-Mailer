@@ -10,8 +10,10 @@ import (
 	"strings"
 )
 
-// SendEmailWithAttachment отправляет файл с вложением на указанные адреса электронной почты
 func SendEmailWithAttachment(to []string, file multipart.File, filename, mimeType string, cfg *config.Config) error {
+	if cfg.SMTPUsername == "" {
+		return fmt.Errorf("пустое имя пользователя")
+	}
 	from := cfg.SMTPUsername
 	subject := "Sending File Attachment"
 	body := "Please find the attached file."
@@ -27,18 +29,15 @@ func SendEmailWithAttachment(to []string, file multipart.File, filename, mimeTyp
 		"Content-Type: " + mimeType + "\n" +
 		"Content-Disposition: attachment; filename=\"" + filename + "\"\n\n"
 
-	// Чтение содержимого файла
 	fileData, err := io.ReadAll(file)
 	if err != nil {
 		return fmt.Errorf("ошибка чтения файла: %v", err)
 	}
 
-	// Создаем тело сообщения с вложением
 	msgBuffer := bytes.NewBufferString(msg)
 	msgBuffer.Write(fileData)
 	msgBuffer.WriteString("\n--boundary--")
 
-	// Настройка SMTP-клиента и отправка сообщения
 	auth := smtp.PlainAuth("", cfg.SMTPUsername, cfg.SMTPPassword, cfg.SMTPHost)
 	err = smtp.SendMail(cfg.SMTPHost+":"+cfg.SMTPPort, auth, from, to, msgBuffer.Bytes())
 	if err != nil {

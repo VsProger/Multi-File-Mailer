@@ -6,7 +6,6 @@ import (
 	"net/http"
 )
 
-// SendMailHandler обрабатывает запрос на отправку файла на указанные почты
 func (app *Application) SendMailHandler(w http.ResponseWriter, r *http.Request) {
 	file, fileHeader, err := r.FormFile("file")
 	if err != nil {

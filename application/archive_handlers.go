@@ -8,7 +8,6 @@ import (
 	"net/http"
 )
 
-// ArchiveInfoHandler обрабатывает запрос информации об архиве
 func (app *Application) ArchiveInfoHandler(w http.ResponseWriter, r *http.Request) {
 	file, fileHeader, err := r.FormFile("file")
 	if err != nil {
@@ -17,12 +16,6 @@ func (app *Application) ArchiveInfoHandler(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	defer file.Close()
-
-	//if !utils.IsValidArchiveMimeType(fileHeader) {
-	//	app.Logger.Error("Недопустимый тип файла для архива")
-	//	http.Error(w, "Недопустимый тип файла", http.StatusUnsupportedMediaType)
-	//	return
-	//}
 
 	info, err := services.ProcessArchive(file, fileHeader.Filename, fileHeader.Size)
 	if err != nil {
@@ -42,7 +35,6 @@ func (app *Application) ArchiveInfoHandler(w http.ResponseWriter, r *http.Reques
 	app.Logger.Info("Архив обработан успешно")
 }
 
-// CreateArchiveHandler обрабатывает создание архива
 func (app *Application) CreateArchiveHandler(w http.ResponseWriter, r *http.Request) {
 	err := r.ParseMultipartForm(10 << 20) // 10 MB
 	if err != nil {

@@ -7,7 +7,6 @@ import (
 	"github.com/joho/godotenv"
 )
 
-// LoadEnv загружает переменные окружения из файла .env
 func LoadEnv() {
 	err := godotenv.Load()
 	if err != nil {
@@ -15,7 +14,6 @@ func LoadEnv() {
 	}
 }
 
-// GetEnv возвращает значение переменной окружения или значение по умолчанию
 func GetEnv(key, defaultValue string) string {
 	value := os.Getenv(key)
 	if value == "" {
