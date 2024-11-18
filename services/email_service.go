@@ -15,23 +15,19 @@ func SendEmailWithAttachment(to []string, file multipart.File, filename, mimeTyp
 		return fmt.Errorf("пустое имя пользователя")
 	}
 
-	// Чтение данных файла
 	fileData, err := io.ReadAll(file)
 	if err != nil {
 		return fmt.Errorf("ошибка чтения файла: %v", err)
 	}
 
-	// Создание нового письма
 	e := email.NewEmail()
 	e.From = cfg.SMTPUsername
 	e.To = to
 	e.Subject = "Sending File Attachment"
 	e.Text = []byte("Please find the attached file.")
 
-	// Добавление вложения
 	e.Attach(bytes.NewReader(fileData), filename, mimeType)
 
-	// Отправка письма через SMTP сервер Gmail
 	addr := fmt.Sprintf("%s:%s", cfg.SMTPHost, cfg.SMTPPort)
 	auth := smtp.PlainAuth("", cfg.SMTPUsername, cfg.SMTPPassword, cfg.SMTPHost)
 
