@@ -11,6 +11,14 @@ import (
 )
 
 func ProcessArchive(file multipart.File, filename string, archiveSize int64) (models.ArchiveInfo, error) {
+	isArchive, err := utils.IsArchive(file)
+	if err != nil {
+		return models.ArchiveInfo{}, fmt.Errorf("ошибка проверки файла: %v", err)
+	}
+	if !isArchive {
+		return models.ArchiveInfo{}, fmt.Errorf("файл не является поддерживаемым архивом")
+	}
+
 	zipReader, err := zip.NewReader(file, archiveSize)
 	if err != nil {
 		return models.ArchiveInfo{}, fmt.Errorf("не удалось прочитать архив: %v", err)
