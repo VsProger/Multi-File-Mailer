@@ -7,6 +7,10 @@ import (
 )
 
 func (app *Application) SendMailHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Метод не разрешен", http.StatusMethodNotAllowed)
+		return
+	}
 	file, fileHeader, err := r.FormFile("file")
 	if err != nil {
 		app.Logger.Error("Не удалось получить файл из запроса")

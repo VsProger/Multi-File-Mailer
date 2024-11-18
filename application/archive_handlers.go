@@ -9,6 +9,10 @@ import (
 )
 
 func (app *Application) ArchiveInfoHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Метод не разрешен", http.StatusMethodNotAllowed)
+		return
+	}
 	file, fileHeader, err := r.FormFile("file")
 	if err != nil {
 		app.Logger.Error("Не удалось получить файл из запроса")
@@ -36,6 +40,11 @@ func (app *Application) ArchiveInfoHandler(w http.ResponseWriter, r *http.Reques
 }
 
 func (app *Application) CreateArchiveHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Метод не разрешен", http.StatusMethodNotAllowed)
+		return
+	}
+
 	err := r.ParseMultipartForm(10 << 20) // 10 MB
 	if err != nil {
 		app.Logger.Error("Не удалось разобрать multipart form: " + err.Error())
