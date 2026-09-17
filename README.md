@@ -1,58 +1,55 @@
-# 📧 Multi-File Mailer API
+# Multi-File Mailer API
 
-Multi-File Mailer API, a powerful tool designed to send files to multiple email addresses and to combine files into ZIP archives, was developed for [Doodocs-Days-2.0](https://github.com/doodocs/doodocs-days/tree/main/backend).
-The project allows you to easily work with multipart/form-data files, simplifying
-the task of bulk mailing and file management.
+A Go HTTP service for bulk file delivery over SMTP and for building ZIP archives from `multipart/form-data` uploads. Built for the [Doodocs Days 2.0](https://github.com/doodocs/doodocs-days/tree/main/backend) backend challenge.
 
-## 🌟 Features:
+## Overview
 
-* **Bulk file distribution** 📬: send a document to multiple recipients at once.
-*  **Archiving** 📦: process uploaded files to combine them into a single ZIP archive.
-*  **Multiple file type support** 📄: process files of different MIME types such as `application/pdf`, `application/vnd.openxmlformats-officedocument.wordprocessingml.document`, and images.
-*  **Instant access to archive information** 📊: get data about archive contents and structure.
+Two operations that web backends routinely need and routinely get wrong: accepting a set of uploaded files and returning them as one archive, and mailing a document to many recipients in a single request. Both hinge on handling `multipart/form-data` correctly — streaming the parts, validating what was actually uploaded rather than trusting the client, and failing clearly when a file is not what it claims to be.
 
-## 📚 API Routes
+The service exposes three endpoints and holds no state: no database, no queue, no session.
 
-### 1. POST /api/archive/information
-Provides information about the downloaded ZIP archive, including the size of the archive, the number of files, and the type of each file.
+## Technical Approach
 
-#### Query parameters
-* **file** (mandatory): the archive file (ZIP) whose information is to be retrieved.
+**Content-type validation by inspection, not by claim.** A `Content-Type` header and a file extension are both client-controlled. Uploads are identified from their magic bytes via `h2non/filetype`, and requests carrying a disallowed type are rejected before any processing.
 
-#### Example of an answer
-```
+**Archive handling.** `archive/zip` from the standard library builds archives in place and reads uploaded ones for inspection, reporting per-entry path, size and MIME type alongside compressed and uncompressed totals.
+
+**Mail delivery.** SMTP credentials come from the environment, never from the request. The recipient list is parsed from a comma-separated field and the attachment is delivered to each address.
+
+**Layering.** Handlers parse and validate HTTP; services hold the archive and mail logic and know nothing about `http.Request`; utilities cover MIME detection, archive assembly and environment loading. That separation is what makes the archive service unit-testable without standing up a server.
+
+## Technologies
+
+Go 1.21 · `net/http` (standard-library routing, no framework) · `archive/zip` · `h2non/filetype` · `jordan-wright/email` · `joho/godotenv` · Docker · Make
+
+## API
+
+### `POST /api/archive/information`
+
+Inspects an uploaded ZIP archive.
+
+**Parameters** — `file` (required): the ZIP archive.
+
+```json
 {
     "filename": "my_archive.zip",
     "archive_size": 4102029,
     "total_size": 6836715,
     "total_files": 2,
     "files": [
-        {
-            "file_path": "photo.jpg",
-            "size": 2516582,
-            "mimetype": "image/jpeg"
-        },
-        {
-            "file_path": "directory/document.docx",
-            "size": 4320133,
-            "mimetype": "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-        }
+        { "file_path": "photo.jpg", "size": 2516582, "mimetype": "image/jpeg" },
+        { "file_path": "directory/document.docx", "size": 4320133, "mimetype": "application/vnd.openxmlformats-officedocument.wordprocessingml.document" }
     ]
 }
 ```
 
-### 2. POST /api/archive/files
-Combines the uploaded files into a ZIP archive and returns the archive to the client.
+### `POST /api/archive/files`
 
-#### Query parameters
-* **files**[] (mandatory): array of files to archive. Supported MIME types:
-    * `application/vnd.openxmlformats-officedocument.wordprocessingml.document`
-    * `application/xml`
-    * `image/jpeg`
-    * `image/png`
+Combines uploaded files into a ZIP archive and returns it.
 
-#### Example of a request
-```
+**Parameters** — `files[]` (required). Accepted types: `application/vnd.openxmlformats-officedocument.wordprocessingml.document`, `application/xml`, `image/jpeg`, `image/png`.
+
+```http
 POST /api/archive/files HTTP/1.1
 Content-Type: multipart/form-data; boundary=-{boundary}
 
@@ -60,98 +57,82 @@ Content-Type: multipart/form-data; boundary=-{boundary}
 Content-Disposition: form-data; name="files[]"; filename="document.docx"
 Content-Type: application/vnd.openxmlformats-officedocument.wordprocessingml.document
 
-{Binary data of DOCX file}
--{boundary}
-Content-Disposition: form-data; name="files[]"; filename="avatar.png"
-Content-Type: image/png
-
-{Binary data of PNG file}
--{boundary}--
-```
-#### Example of an answer
-Downloadable ZIP file with downloaded files.
-
-### 3. POST /api/mail/file
-Sends the specified file to multiple recipients via email.
-
-#### Request parameters
-* **file** (mandatory): the file you want to send. MIME types supported:
-  * `application/vnd.openxmlformats-officedocument.wordprocessingml.document`
-  * `application/pdf`
-* **emails** (mandatory): a comma-separated list of email addresses to which the file will be sent.
-
-#### Example of a request
-```
-POST /api/mail/file HTTP/1.1
-Content-Type: multipart/form-data; boundary=-{boundary}
-
--{boundary}
-Content-Disposition: form-data; name="file"; filename="document.pdf"
-Content-Type: application/pdf
-
-{Binary data of PDF file}
--{boundary}
-Content-Disposition: form-data; name="emails"
-
-email1@example.com,email2@example.com
+{binary}
 -{boundary}--
 ```
 
-#### Example of an answer
-``` 
-{
-  "message": "Файл успешно отправлен на указанные почты."
-}
+Responds with the ZIP file as a download.
+
+### `POST /api/mail/file`
+
+Sends one file to several recipients.
+
+**Parameters** — `file` (required; `application/pdf` or `.docx`), `emails` (required; comma-separated addresses).
+
+```json
+{ "message": "Файл успешно отправлен на указанные почты." }
 ```
 
-## 🛠 Installation
+## How to Run
 
-1. Clone the repository:
-``` 
-git clone https://github.com/VsProger/Multi-File-Mailer-API.git
-cd Multi-File-Mailer-API
+```bash
+git clone https://github.com/VsProger/Multi-File-Mailer.git
+cd Multi-File-Mailer
 ```
-2. Create an .env file with variables for SMTP settings:
-``` 
+
+Create a `.env` file:
+
+```
 PORT=:8080
 SMTP_HOST=smtp.example.com
 SMTP_PORT=587
 SMTP_USERNAME=your_username
 SMTP_PASSWORD=your_password
 ```
-3. Install the dependencies and run the application:
-``` 
+
+For Gmail and other providers with two-factor authentication, use an app-specific password. `.env` is gitignored and must stay that way.
+
+```bash
 go mod tidy
 go run ./cmd/web/main.go
 ```
-Additionally, you can use commands in the `Makefile`
-* `make run`: to build and run the application
-* `make clean`: to clean up binary
-* `make test`: to run tests
-* `make docker-run`: to build and run the application  in the docker
-  
-_(make sure you have make and docker)_
-## ⚙️ Configuration
-Environment variables required to set up the SMTP server and API port:
-- `PORT`: Port on which the API server will run (e.g., `8080`).
-- `SMTP_HOST`: Address of the SMTP server (e.g., `smtp.gmail.com` for Gmail).
-- `SMTP_PORT`: Port of the SMTP server (e.g., `587` for TLS).
-- `SMTP_USERNAME`: Username for authentication (usually your email).
-- `SMTP_PASSWORD`: Password or app-specific password for authentication.
 
-## 🧪 API Testing
-Using Postman:
-1. Open Postman and create a new POST request.
-2. Enter your server URL (http://localhost:8080/api/mail/file) and configure Body in form-data format to send files. 
-3. Add a file key for the file and emails for a list of email addresses.
+Or through the Makefile: `make run`, `make test`, `make clean`, `make docker-run`.
 
-## 🚀 How it works
-1. **File processing:** Uploaded files are validated against supported file types.
-2. **Archive creation:** The API can combine multiple files into a single ZIP archive and send it to the user. 
-3. **Mailing:** The API uses the specified SMTP credentials to send files to a list of recipients.
+Quick check:
 
-## 🛡️ Security
-For Gmail and other services with two-factor authentication, it is recommended to use application passwords. Make sure your .env file is not added to the repository (add it to .gitignore).
+```bash
+curl -F "file=@document.pdf" -F "emails=a@example.com,b@example.com" \
+     http://localhost:8080/api/mail/file
+```
 
-## 📄 Licence
-This project is distributed under the MIT licence.
+## Project Structure
+
+```
+├── cmd/web/main.go           entry point
+├── application/              HTTP handlers and routing
+│   ├── app.go                    server setup, route table
+│   ├── archive_handlers.go
+│   └── email_handlers.go
+├── services/                 business logic, independent of net/http
+│   ├── archive_services.go
+│   ├── archive_services_test.go
+│   └── email_service.go
+├── utils/                    MIME detection, archive assembly, mail, env
+├── models/                   request and response types
+├── config/                   configuration loading
+├── logger/                   levelled logging
+├── Dockerfile
+└── Makefile
+```
+
+## Future Improvements
+
+- **Bound the upload size.** There is currently no explicit limit, so a large multipart body can consume memory; `http.MaxBytesReader` plus streaming straight to a temporary file would fix it.
+- **Report per-recipient delivery results.** Mailing is all-or-nothing today; returning per-address status would let clients retry only what failed.
+- **Move mail off the request path** into a worker with retry and backoff, so a slow SMTP server stops blocking the HTTP response.
+- **Extend test coverage** from the archive service to the handlers, using `httptest` with synthetic multipart bodies.
+
+## License
+
+MIT — see [LICENSE](LICENSE).
